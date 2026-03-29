@@ -8,6 +8,12 @@
 </div>
 クリックされた画像をスムーズに拡大表示するプラグイン
 
+
+## Demo（デモ）
+このプラグインの動作デモは以下からご覧いただけます。
+
+https://shinyan1806.github.io/vanilla-image-zoom/
+
 ## Overview（概要）
 このプロジェクトは、[fat/zoom.js](https://github.com/fat/zoom.js) をベースに、Vanilla JavaScriptで再構成したものです。
 `data-action="zoom"` を指定した `img` をクリックするとスムーズに拡大表示されます。

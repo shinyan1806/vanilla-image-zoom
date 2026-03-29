@@ -8,7 +8,11 @@
 </div>
 A plugin to smoothly zoom images on click
 
-[日本語READMEはこちら](README.ja.md)
+[日本語版READMEはこちら](README.ja.md)
+
+## Demo
+You can try the live demo here:
+https://shinyan1806.github.io/vanilla-image-zoom/
 
 ## Overview
 This project is a vanilla JavaScript adaptation based on [fat/zoom.js](https://github.com/fat/zoom.js).
