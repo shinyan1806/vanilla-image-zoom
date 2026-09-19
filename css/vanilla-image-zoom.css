@@ -3,17 +3,16 @@ img[data-action="zoom"] {
   cursor: zoom-in;
 }
 
-.zoom-img,
-.zoom-img-wrap {
-  position: relative;
+.zoom-img {
+  position: fixed;
   z-index: 666;
-  transition: transform 300ms;
-  will-change: transform;
-}
-
-img.zoom-img {
+  max-width: none;
+  max-height: none;
+  margin: 0;
   cursor: pointer;
   cursor: zoom-out;
+  transition: transform 300ms;
+  will-change: transform;
 }
 
 .zoom-overlay {

@@ -21,95 +21,88 @@
 
   function Zoom(image) {
     this.image = image;
-    this.imageWrap = null;
+    this.clone = null;
     this.overlay = null;
-    this.scaleFactor = 1;
+    this.width = 0;
+    this.height = 0;
   }
 
   Zoom.prototype.open = function () {
-    this.imageWrap = document.createElement("div");
-    this.imageWrap.className = "zoom-img-wrap";
+    this.calculateSize();
 
-    this.image.parentNode.insertBefore(this.imageWrap, this.image);
-    this.imageWrap.appendChild(this.image);
-
-    this.image.classList.add("zoom-img");
-    this.image.setAttribute("data-action", "zoom-out");
+    this.clone = this.image.cloneNode(false);
+    this.clone.removeAttribute("id");
+    this.clone.removeAttribute("style");
+    this.clone.className = "zoom-img";
+    this.clone.setAttribute("data-action", "zoom-out");
+    this.clone.style.width = this.width + "px";
+    this.clone.style.height = this.height + "px";
+    this.clone.style.left = (window.innerWidth - this.width) / 2 + "px";
+    this.clone.style.top = (window.innerHeight - this.height) / 2 + "px";
+    this.clone.style.transform = this.originTransform();
 
     this.overlay = document.createElement("div");
     this.overlay.className = "zoom-overlay";
+
     document.body.appendChild(this.overlay);
+    document.body.appendChild(this.clone);
+    this.image.style.visibility = "hidden";
 
-    this.calculateZoom();
-    this.applyZoom();
-  };
+    void this.clone.offsetWidth;
 
-  Zoom.prototype.calculateZoom = function () {
-    var imageWidth = this.image.width;
-    var naturalWidth = this.image.naturalWidth || imageWidth;
-    var naturalHeight = this.image.naturalHeight || this.image.height;
-    var maxScaleFactor = naturalWidth / imageWidth;
-    var viewportHeight = window.innerHeight - OFFSET;
-    var viewportWidth = window.innerWidth - OFFSET;
-    var imageAspectRatio = naturalWidth / naturalHeight;
-    var viewportAspectRatio = viewportWidth / viewportHeight;
-
-    if (naturalWidth < viewportWidth && naturalHeight < viewportHeight) {
-      this.scaleFactor = maxScaleFactor;
-    } else if (imageAspectRatio < viewportAspectRatio) {
-      this.scaleFactor = (viewportHeight / naturalHeight) * maxScaleFactor;
-    } else {
-      this.scaleFactor = (viewportWidth / naturalWidth) * maxScaleFactor;
-    }
-  };
-
-  Zoom.prototype.applyZoom = function () {
-    void this.image.offsetWidth;
-
-    var rect = this.image.getBoundingClientRect();
-    var viewportY = window.scrollY + window.innerHeight / 2;
-    var viewportX = window.innerWidth / 2;
-    var imageCenterY = window.scrollY + rect.top + rect.height / 2;
-    var imageCenterX = rect.left + rect.width / 2;
-    var translateY = viewportY - imageCenterY;
-    var translateX = viewportX - imageCenterX;
-
-    this.image.style.transform = "scale(" + this.scaleFactor + ")";
-    this.imageWrap.style.transform =
-      "translate(" + translateX + "px, " + translateY + "px) translateZ(0)";
-
+    this.clone.style.transform = "";
     document.body.classList.add("zoom-overlay-open");
   };
 
-  Zoom.prototype.close = function (done) {
+  Zoom.prototype.calculateSize = function () {
+    var rect = this.image.getBoundingClientRect();
+    var naturalWidth = this.image.naturalWidth || rect.width;
+    var naturalHeight = this.image.naturalHeight || rect.height;
+    var scale = Math.min(
+      1,
+      (window.innerWidth - OFFSET) / naturalWidth,
+      (window.innerHeight - OFFSET) / naturalHeight
+    );
+
+    this.width = naturalWidth * scale;
+    this.height = naturalHeight * scale;
+  };
+
+  Zoom.prototype.originTransform = function () {
+    var rect = this.image.getBoundingClientRect();
+    var translateX = rect.left + rect.width / 2 - window.innerWidth / 2;
+    var translateY = rect.top + rect.height / 2 - window.innerHeight / 2;
+    var scale = rect.width / this.width;
+
+    return "translate(" + translateX + "px, " + translateY + "px) scale(" + scale + ")";
+  };
+
+  Zoom.prototype.close = function () {
     var self = this;
     var finished = false;
 
     document.body.classList.remove("zoom-overlay-open");
     document.body.classList.add("zoom-overlay-transitioning");
 
-    this.image.style.transform = "";
-    this.imageWrap.style.transform = "";
+    this.clone.style.transform = this.originTransform();
 
     function finish() {
       if (finished) return;
       finished = true;
-      self.image.removeEventListener("transitionend", finish);
+      self.clone.removeEventListener("transitionend", finish);
       self.dispose();
-      done();
     }
 
-    this.image.addEventListener("transitionend", finish);
+    this.clone.addEventListener("transitionend", finish);
     window.setTimeout(finish, TRANSITION_DURATION_MS + 50);
   };
 
   Zoom.prototype.dispose = function () {
-    if (!this.imageWrap || !this.imageWrap.parentNode) return;
+    this.image.style.visibility = "";
 
-    this.image.classList.remove("zoom-img");
-    this.image.setAttribute("data-action", "zoom");
-    this.imageWrap.parentNode.replaceChild(this.image, this.imageWrap);
-
+    if (this.clone && this.clone.parentNode) {
+      this.clone.parentNode.removeChild(this.clone);
+    }
     if (this.overlay && this.overlay.parentNode) {
       this.overlay.parentNode.removeChild(this.overlay);
     }
@@ -125,6 +118,7 @@
 
     this.onBodyClick = this.onBodyClick.bind(this);
     this.onWindowScroll = this.onWindowScroll.bind(this);
+    this.onWindowResize = this.onWindowResize.bind(this);
     this.onDocumentKeyup = this.onDocumentKeyup.bind(this);
     this.onDocumentTouchStart = this.onDocumentTouchStart.bind(this);
     this.onDocumentCaptureClick = this.onDocumentCaptureClick.bind(this);
@@ -146,6 +140,7 @@
     this.activeZoom.open();
 
     window.addEventListener("scroll", this.onWindowScroll, { passive: true });
+    window.addEventListener("resize", this.onWindowResize);
     document.addEventListener("keyup", this.onDocumentKeyup);
     document.addEventListener("touchstart", this.onDocumentTouchStart, { passive: true });
     document.addEventListener("click", this.onDocumentCaptureClick, true);
@@ -162,11 +157,12 @@
     this.initialTouchPosition = null;
     this.touchMoveTarget = null;
 
-    zoom.close(function () {});
+    zoom.close();
   };
 
   ZoomService.prototype.removeListeners = function () {
     window.removeEventListener("scroll", this.onWindowScroll);
+    window.removeEventListener("resize", this.onWindowResize);
     document.removeEventListener("keyup", this.onDocumentKeyup);
     document.removeEventListener("touchstart", this.onDocumentTouchStart);
     document.removeEventListener("click", this.onDocumentCaptureClick, true);
@@ -186,6 +182,10 @@
     if (Math.abs(this.initialScrollPosition - window.scrollY) >= SCROLL_CLOSE_DELTA) {
       this.closeActiveZoom();
     }
+  };
+
+  ZoomService.prototype.onWindowResize = function () {
+    this.closeActiveZoom();
   };
 
   ZoomService.prototype.onDocumentKeyup = function (event) {
